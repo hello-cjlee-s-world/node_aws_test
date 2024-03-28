@@ -9,14 +9,27 @@ const passport = require('passport');
 const helmet = require('helmet');
 const hpp = require('hpp');
 const redis = require('redis');
-const RedisStore = require('connect-reids')(session);
+const RedisStore = require('connect-redis')(session);
+
 
 
 dotenv.config();
+// REDIS 관련 설정
 const redisClient = redis.createClient({
-    url: `redis://${process.env.REDIS_HOST}:${procses.env.PORT}`,
-    password: process.env.REDIS_PASSWORD
+    //url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
+    url:`redis://${process.env.REDIS_USERNAME}:${process.env.REDIS_PASSWORD}@${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
+    password: process.env.REDIS_PASSWORD,
+    legacyMode: true
 });
+redisClient.on('connect', () => {
+    console.info('Redis connected!');
+ });
+ redisClient.on('error', (err) => {
+    console.error('Redis Client Error', err);
+ });
+ redisClient.connect().then(); // redis v4 연결 (비동기)
+ const redisCli = redisClient.v4; // 기본 redisClient 객체는 콜백기반인데 v4버젼은 프로미스 기반이라 사용
+ 
 const pageRouter = require('./routes/page');
 const authRouter = require('./routes/auth');
 const postRouter = require('./routes/post');
@@ -62,7 +75,7 @@ const sessionOption = {
         httpOnly: true,
         secure: false
     },
-    store: new RedisStore({ client: redisClient });
+    store: new RedisStore({ client: redisClient, prefix: 'session:' })
 }
 if(process.env.NODE_ENV == "production") {
     sessionOption.proxy = true;
